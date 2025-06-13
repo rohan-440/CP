@@ -1,13 +1,18 @@
-#include <bits/stdc++.h>
+#include <iostream>
+#include <vector>
+#include <algorithm>
 using namespace std;
+
+const int INF = 1e9 + 7;
 
 class Sgt
 {
 public:
     vector<int> v;
+
     Sgt(int n)
     {
-        v.resize(4 * n);
+        v.resize(4 * n, INF);
     }
 
     void build(vector<int> &arr, int ind, int l, int r)
@@ -15,50 +20,76 @@ public:
         if (l == r)
         {
             v[ind] = arr[l];
+            return;
         }
-        else
-        {
-            int mid = (l + r) / 2;
-            build(arr, 2 * ind + 1, l, mid);
-            build(arr, 2 * ind + 2, mid + 1, r);
-            v[ind] = v[2 * ind + 1] + v[2 * ind + 2];
-        }
+        int mid = (l + r) / 2;
+        build(arr, 2 * ind + 1, l, mid);
+        build(arr, 2 * ind + 2, mid + 1, r);
+        v[ind] = min(v[2 * ind + 1], v[2 * ind + 2]);
     }
 
-    int sum(int ind, int tl, int tr, int l, int r)
+    // Range update without lazy propagation: O((r-l+1) * log n)
+    void range_update(int ind, int l, int r, int ql, int qr, int val)
     {
-        if (l > r)
-            return 0;
-        if (l == tl && r == tr)
-            return v[ind];
-        int tm = (tl + tr) / 2;
-        return sum(2 * ind + 1, tl, tm, l, min(tm, r)) + sum(2 * ind + 2, tm + 1, r, max(tm + 1, l), r);
+        if (l > qr || r < ql)
+            return; // No overlap
+        if (l == r)
+        { // Leaf node
+            v[ind] += val;
+            return;
+        }
+        int mid = (l + r) / 2;
+        range_update(2 * ind + 1, l, mid, ql, qr, val);
+        range_update(2 * ind + 2, mid + 1, r, ql, qr, val);
+        v[ind] = min(v[2 * ind + 1], v[2 * ind + 2]);
     }
 
-    void update(int ind, int tl, int tr, int pos, int new_val)
+    int get_min(int ind, int l, int r, int ql, int qr)
     {
-        if (tl == tr)
-            v[ind] = new_val;
-        else
-        {
-            int tm = (tl + tr) / 2;
-            if (pos <= tm)
-            {
-                update(2 * ind + 1, tl, tm, pos, new_val);
-            }
-            else
-            {
-                update(2 * ind + 2, tm + 1, tr, pos, new_val);
-            }
-            v[ind] = v[2 * ind + 1] + v[2 * ind + 2];
-        }
-    }
-
-    void print()
-    {
-        for (int i = 0; i < v.size(); i++)
-        {
-            cout << v[i] << " ";
-        }
+        if (l > qr || r < ql)
+            return INF; // No overlap
+        if (l >= ql && r <= qr)
+            return v[ind]; // Total overlap
+        int mid = (l + r) / 2;
+        int left = get_min(2 * ind + 1, l, mid, ql, qr);
+        int right = get_min(2 * ind + 2, mid + 1, r, ql, qr);
+        return min(left, right);
     }
 };
+
+int main()
+{
+    int n, q;
+    cin >> n >> q;
+    vector<int> arr(n);
+    for (int i = 0; i < n; i++)
+    {
+        cin >> arr[i];
+    }
+    Sgt sgt(n);
+    sgt.build(arr, 0, 0, n - 1);
+
+    for (int i = 0; i < q; i++)
+    {
+        char type;
+        cin >> type;
+        if (type == 'q')
+        {
+            int l, r;
+            cin >> l >> r;
+            l--;
+            r--; // Convert to 0-based indexing
+            cout << sgt.get_min(0, 0, n - 1, l, r) << endl;
+        }
+        else if (type == 'u')
+        {
+            int l, r, val;
+            cin >> l >> r >> val;
+            l--;
+            r--; // Convert to 0-based indexing
+            sgt.range_update(0, 0, n - 1, l, r, val);
+        }
+    }
+
+    return 0;
+}
